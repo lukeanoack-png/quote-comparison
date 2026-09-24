@@ -3,6 +3,9 @@ import { cn } from "@/lib/utils";
 
 type Variant = "default" | "secondary" | "success" | "warning" | "destructive" | "outline";
 
+// default = accent (the recommendation), success = favorable economics,
+// warning = incomplete information, destructive = material risk.
+
 const variantClasses: Record<Variant, string> = {
   default: "bg-primary/10 text-primary border-transparent",
   secondary: "bg-secondary text-secondary-foreground border-transparent",
@@ -20,7 +23,7 @@ export function Badge({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-2xs font-medium leading-none",
+        "inline-flex items-center gap-1 whitespace-nowrap rounded border px-1.5 py-[3px] text-2xs font-medium leading-none",
         variantClasses[variant],
         className
       )}

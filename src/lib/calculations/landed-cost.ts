@@ -54,12 +54,21 @@ export interface LandedCostResult {
 
   /** Which cost fields were not provided on the quote (unknown, not assumed zero). */
   missingFields: string[];
+  /** Same as missingFields, as SupplierQuote keys. */
+  missingCostKeys: CostFieldKey[];
+  /**
+   * False when any cost component is unknown. Unknown components are excluded
+   * (never assumed zero), so an incomplete totalLandedCost is a lower bound.
+   */
+  costComplete: boolean;
   /** True if quantity is below the supplier's stated minimum order quantity. */
   belowMinimumOrderQuantity: boolean;
   moqShortfall: number | null;
 }
 
-const FIELD_LABELS: Record<string, string> = {
+export type CostFieldKey = "unitPrice" | "shippingCost" | "taxesFees" | "setupFees" | "otherFees";
+
+export const COST_FIELD_LABELS: Record<CostFieldKey, string> = {
   unitPrice: "Unit price",
   shippingCost: "Shipping cost",
   taxesFees: "Taxes / fees",
@@ -72,10 +81,10 @@ export function calcLandedCost(
   assumptions: ScenarioAssumptions
 ): LandedCostResult {
   const quantity = assumptions.requiredQuantity;
-  const missingFields: string[] = [];
+  const missingCostKeys: CostFieldKey[] = [];
 
   const grossBaseCost = quote.unitPrice != null ? quote.unitPrice * quantity : null;
-  if (quote.unitPrice == null) missingFields.push(FIELD_LABELS.unitPrice);
+  if (quote.unitPrice == null) missingCostKeys.push("unitPrice");
 
   const discountApplied = getApplicableDiscount(quote.volumeDiscounts, quantity);
   const discountAmount =
@@ -93,10 +102,10 @@ export function calcLandedCost(
   const scaledTaxes = quote.taxesFees != null ? quote.taxesFees * scaleFactor : null;
   const scaledOther = quote.otherFees != null ? quote.otherFees * scaleFactor : null;
 
-  if (quote.shippingCost == null) missingFields.push(FIELD_LABELS.shippingCost);
-  if (quote.taxesFees == null) missingFields.push(FIELD_LABELS.taxesFees);
-  if (quote.setupFees == null) missingFields.push(FIELD_LABELS.setupFees);
-  if (quote.otherFees == null) missingFields.push(FIELD_LABELS.otherFees);
+  if (quote.shippingCost == null) missingCostKeys.push("shippingCost");
+  if (quote.taxesFees == null) missingCostKeys.push("taxesFees");
+  if (quote.setupFees == null) missingCostKeys.push("setupFees");
+  if (quote.otherFees == null) missingCostKeys.push("otherFees");
 
   const knownComponents = [basePurchaseCost, scaledShipping, scaledTaxes, quote.setupFees, scaledOther];
   const subtotalKnownCosts = knownComponents.reduce((sum: number, v) => sum + (v ?? 0), 0);
@@ -108,7 +117,9 @@ export function calcLandedCost(
   );
 
   const totalLandedCost = subtotalKnownCosts - paymentTermsValue;
-  const effectiveUnitCost = quantity > 0 ? totalLandedCost / quantity : null;
+  // Without a unit price there is no purchase cost to compare, so the quote
+  // can't be priced at all (a total made only of fees would look artificially cheap).
+  const effectiveUnitCost = quantity > 0 && basePurchaseCost != null ? totalLandedCost / quantity : null;
 
   const belowMinimumOrderQuantity =
     quote.minimumOrderQuantity != null && quantity < quote.minimumOrderQuantity;
@@ -132,7 +143,9 @@ export function calcLandedCost(
     subtotalKnownCosts,
     totalLandedCost,
     effectiveUnitCost,
-    missingFields,
+    missingFields: missingCostKeys.map((k) => COST_FIELD_LABELS[k]),
+    missingCostKeys,
+    costComplete: missingCostKeys.length === 0,
     belowMinimumOrderQuantity,
     moqShortfall,
   };

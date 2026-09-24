@@ -4,4 +4,4 @@ export * from "./scoring";
 export * from "./comparison";
 export * from "./negotiation";
 export * from "./risk-flags";
-export * from "./deal-analysis";
+export * from "./decision";

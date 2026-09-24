@@ -1,6 +1,6 @@
 import type { ScenarioAssumptions, ScoringWeights, SupplierQuote } from "@/lib/types";
 import { calcAnnualRecurringCost, calcLandedCost, dollarDiff, percentDiff, type LandedCostResult } from "./landed-cost";
-import { calcWeightedScores, type SupplierScore } from "./scoring";
+import { calcWeightedScores, rankScores, type FactorMethod, type SupplierScore } from "./scoring";
 
 export interface SupplierComparison {
   quote: SupplierQuote;
@@ -14,7 +14,10 @@ export interface SupplierComparison {
 export interface ComparisonResult {
   suppliers: SupplierComparison[];
   scores: SupplierScore[];
+  scoringMethods: FactorMethod[];
+  /** Lowest total landed cost among suppliers that can be priced (have a unit price). */
   bestCostSupplierId: string | null;
+  /** Highest weighted score among suppliers eligible for recommendation. */
   bestScoreSupplierId: string | null;
 }
 
@@ -29,30 +32,29 @@ export function buildComparison(
 
   const suppliers: SupplierComparison[] = quotes.map((quote, idx) => {
     const landedCost = landedCosts[idx];
-    const annualRecurringCost = calcAnnualRecurringCost(quote, assumptions);
-    const diffDollar = bestCost != null && landedCost.effectiveUnitCost != null ? dollarDiff(landedCost.totalLandedCost, bestCost) : 0;
-    const diffPercent = bestCost != null && landedCost.effectiveUnitCost != null ? percentDiff(landedCost.totalLandedCost, bestCost) : 0;
+    const priced = bestCost != null && landedCost.effectiveUnitCost != null;
     return {
       quote,
       landedCost,
-      annualRecurringCost,
-      dollarDiffFromBest: diffDollar,
-      percentDiffFromBest: diffPercent,
-      isLowestCost: bestCost != null && landedCost.totalLandedCost === bestCost,
+      annualRecurringCost: calcAnnualRecurringCost(quote, assumptions),
+      dollarDiffFromBest: priced ? dollarDiff(landedCost.totalLandedCost, bestCost) : 0,
+      percentDiffFromBest: priced ? percentDiff(landedCost.totalLandedCost, bestCost) : 0,
+      isLowestCost: priced && landedCost.totalLandedCost === bestCost,
     };
   });
 
-  const scores = calcWeightedScores(
+  const { scores, methods } = calcWeightedScores(
     quotes.map((quote, idx) => ({ quote, landedCost: landedCosts[idx] })),
     weights
   );
 
   const bestCostSupplierId =
-    suppliers.filter((s) => s.landedCost.effectiveUnitCost != null).sort((a, b) => a.landedCost.totalLandedCost - b.landedCost.totalLandedCost)[0]
-      ?.quote.id ?? null;
+    suppliers
+      .filter((s) => s.landedCost.effectiveUnitCost != null)
+      .sort((a, b) => a.landedCost.totalLandedCost - b.landedCost.totalLandedCost)[0]?.quote.id ?? null;
 
-  const bestScoreSupplierId =
-    [...scores].sort((a, b) => b.totalScore - a.totalScore)[0]?.supplierId ?? null;
+  const top = rankScores(scores)[0];
+  const bestScoreSupplierId = top && top.ineligibleReason == null ? top.supplierId : null;
 
-  return { suppliers, scores, bestCostSupplierId, bestScoreSupplierId };
+  return { suppliers, scores, scoringMethods: methods, bestCostSupplierId, bestScoreSupplierId };
 }

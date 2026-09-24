@@ -44,6 +44,25 @@ export function calcPaymentTermsValue(
   return amountDue * rate * (days / 365);
 }
 
+/**
+ * Whether the terms state enough to calculate a financing value. Terms that
+ * don't (net terms with no day count, undescribed custom terms, a deposit with
+ * no percentage) are treated as unknown for scoring rather than valued at 0.
+ */
+export function isPaymentTermsQuantifiable(terms: PaymentTerms): boolean {
+  switch (terms.type) {
+    case "immediate":
+      return true;
+    case "net":
+    case "custom":
+      return terms.netDays != null;
+    case "deposit":
+      return terms.depositPercent != null && terms.netDays != null;
+    default:
+      return false;
+  }
+}
+
 export function paymentTermsLabel(terms: PaymentTerms): string {
   switch (terms.type) {
     case "immediate":

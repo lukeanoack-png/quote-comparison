@@ -6,17 +6,19 @@ import type { SupplierQuote } from "./types";
  * Components, and Atlas Manufacturing are not real companies. No claims in
  * this file are sourced from real supplier data.
  *
- * The numbers are deliberately tuned so that:
- *  - Blue Ridge has the lowest sticker unit price, but is NOT the lowest
- *    total landed cost, because it charges more for shipping and offers no
- *    payment-term financing value (Net 15).
- *  - Summit has a slightly higher unit price but free shipping, Net 60
- *    terms, and a volume discount — making it the lowest total landed cost,
- *    and by a wider margin once volume climbs past its discount threshold.
- *  - Atlas is the most expensive on cost, but fastest lead time, best
- *    warranty, and lowest minimum order quantity — at the cost of a 12-month
- *    contract commitment.
- * Change the "required quantity" scenario control to see the ranking shift.
+ * What the numbers show at the default 1,000 units:
+ *  - Blue Ridge (incumbent) has the lowest unit price and the lowest total
+ *    landed cost, but the slowest delivery, Net 15 terms, and a quote that
+ *    expires in 5 days.
+ *  - Summit costs ~$570 more (setup fee, higher unit price; free shipping and
+ *    Net 60 offset part of it) but delivers twice as fast and is rated more
+ *    reliable — so it wins the default weighted score.
+ *  - Atlas is fastest and best-rated, but most expensive, requires a 12-month
+ *    contract, and doesn't state taxes/fees (so its landed cost is a minimum).
+ *  - Neither Blue Ridge nor Summit states a contract length; flexibility is
+ *    therefore unscored for them rather than assumed.
+ * At 5,000 units Summit's 9% volume discount makes it the lowest cost too.
+ * Raise the price weight to ~80% and Blue Ridge becomes the recommendation.
  */
 
 function daysFromNow(days: number): string {

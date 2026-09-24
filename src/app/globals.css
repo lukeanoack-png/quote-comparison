@@ -4,36 +4,32 @@
 
 @layer base {
   :root {
+    /* Neutrals */
     --background: 0 0% 100%;
-    --foreground: 222 20% 15%;
-
+    --foreground: 222 24% 12%;
     --card: 0 0% 100%;
-    --card-foreground: 222 20% 15%;
+    --card-foreground: 222 24% 12%;
+    --border: 220 14% 91%;
+    --input: 220 13% 87%;
+    --muted: 220 18% 96.5%;
+    --muted-foreground: 220 9% 44%;
+    --secondary: 220 16% 95%;
+    --secondary-foreground: 222 24% 12%;
 
-    --border: 220 14% 90%;
-    --input: 220 14% 90%;
-    --ring: 222 47% 30%;
-
-    --muted: 220 20% 97%;
-    --muted-foreground: 220 9% 46%;
-
-    --primary: 222 47% 20%;
+    /* The single accent: actions, focus, the recommendation */
+    --primary: 221 72% 42%;
     --primary-foreground: 0 0% 100%;
-
-    --secondary: 220 20% 96%;
-    --secondary-foreground: 222 20% 15%;
-
-    --accent: 217 91% 40%;
+    --accent: 221 72% 42%;
     --accent-foreground: 0 0% 100%;
+    --ring: 221 72% 42%;
 
-    --destructive: 0 72% 45%;
-    --destructive-foreground: 0 0% 100%;
-
-    --success: 152 55% 30%;
+    /* Semantic: green = favorable economics, amber = incomplete information, red = material risk */
+    --success: 152 58% 29%;
     --success-foreground: 0 0% 100%;
-
-    --warning: 32 90% 40%;
+    --warning: 34 90% 36%;
     --warning-foreground: 0 0% 100%;
+    --destructive: 0 68% 46%;
+    --destructive-foreground: 0 0% 100%;
 
     --radius: 0.5rem;
   }

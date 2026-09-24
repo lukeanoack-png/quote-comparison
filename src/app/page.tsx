@@ -1,60 +1,77 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { AppHeader } from "@/components/app-header";
 import { AssumptionsPanel } from "@/components/assumptions-panel";
 import { ComparisonTable } from "@/components/comparison-table";
-import { DealAnalysisSection } from "@/components/deal-analysis-section";
+import { DecisionAnalysis } from "@/components/decision-analysis";
+import { DecisionSummary } from "@/components/decision-summary";
 import { NegotiationSection } from "@/components/negotiation-section";
+import { QuoteFormDialog } from "@/components/quote-form-dialog";
 import { RiskFlagsSection } from "@/components/risk-flags-section";
-import { ScoreBreakdownSection } from "@/components/score-breakdown";
-import { SupplierStrip } from "@/components/supplier-strip";
-import { WeightsPanel } from "@/components/weights-panel";
-import { buildAllRiskFlags, buildComparison, buildDealAnalysis, buildNegotiationInsights } from "@/lib/calculations";
+import { SupplierCards } from "@/components/supplier-cards";
+import { UploadQuoteDialog } from "@/components/upload-quote-dialog";
+import { buildAllRiskFlags, buildComparison, buildDecision, buildNegotiationInsights, rankScores } from "@/lib/calculations";
 import { useAppState } from "@/lib/store/app-context";
+import type { SupplierQuote } from "@/lib/types";
+import { useRecommendationChange } from "@/lib/use-recommendation-change";
 
 export default function Home() {
-  const { state } = useAppState();
+  const { state, addQuote, updateQuote } = useAppState();
+  const { quotes, assumptions, weights } = state;
 
-  const comparison = useMemo(
-    () => buildComparison(state.quotes, state.assumptions, state.weights),
-    [state.quotes, state.assumptions, state.weights]
-  );
+  const [quoteDialogOpen, setQuoteDialogOpen] = useState(false);
+  const [editing, setEditing] = useState<SupplierQuote | null>(null);
+  const [uploadOpen, setUploadOpen] = useState(false);
 
-  const dealAnalysis = useMemo(() => buildDealAnalysis(comparison), [comparison]);
+  const comparison = useMemo(() => buildComparison(quotes, assumptions, weights), [quotes, assumptions, weights]);
+  const decision = useMemo(() => buildDecision(comparison, assumptions, weights), [comparison, assumptions, weights]);
+  const negotiation = useMemo(() => buildNegotiationInsights(comparison.suppliers, assumptions), [comparison, assumptions]);
+  const riskFlags = useMemo(() => buildAllRiskFlags(comparison.suppliers, assumptions, weights), [comparison, assumptions, weights]);
+  const [change, dismissChange] = useRecommendationChange(state.hydrated, assumptions, weights, quotes, comparison);
 
-  const negotiationInsights = useMemo(
-    () => buildNegotiationInsights(comparison.suppliers.map((s) => ({ quote: s.quote, landedCost: s.landedCost }))),
-    [comparison]
-  );
+  // Recommended supplier first, then by score — used to order negotiation and risk items.
+  const supplierOrder = useMemo(() => rankScores(comparison.scores).map((s) => s.supplierId), [comparison]);
 
-  const riskFlags = useMemo(
-    () => buildAllRiskFlags(comparison.suppliers.map((s) => ({ quote: s.quote, landedCost: s.landedCost }))),
-    [comparison]
-  );
+  function openNew() {
+    setEditing(null);
+    setQuoteDialogOpen(true);
+  }
+
+  function openEdit(q: SupplierQuote) {
+    setEditing(q);
+    setQuoteDialogOpen(true);
+  }
 
   return (
     <div className="min-h-screen bg-muted">
-      <AppHeader />
-      <main className="mx-auto max-w-[1400px] space-y-6 px-4 py-6 sm:px-6">
-        <SupplierStrip />
+      <AppHeader onAddQuote={openNew} onUploadQuote={() => setUploadOpen(true)} />
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
-          <div className="min-w-0 space-y-6">
-            <ComparisonTable comparison={comparison} />
-            <DealAnalysisSection analysis={dealAnalysis} />
-            <ScoreBreakdownSection scores={comparison.scores} />
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-              <NegotiationSection insights={negotiationInsights} />
-              <RiskFlagsSection flags={riskFlags} />
-            </div>
-          </div>
-          <div className="space-y-6">
-            <AssumptionsPanel />
-            <WeightsPanel />
-          </div>
+      <main className="mx-auto max-w-[1280px] space-y-12 px-4 py-8 sm:px-6">
+        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+          <DecisionSummary decision={decision} assumptions={assumptions} change={change} onDismissChange={dismissChange} />
+          <AssumptionsPanel />
         </div>
+
+        <SupplierCards comparison={comparison} onAdd={openNew} onEdit={openEdit} />
+
+        {quotes.length > 0 && (
+          <>
+            <ComparisonTable comparison={comparison} requiredQuantity={assumptions.requiredQuantity} />
+            <DecisionAnalysis comparison={comparison} decision={decision} />
+            <NegotiationSection insights={negotiation} supplierOrder={supplierOrder} recommendedId={comparison.bestScoreSupplierId} />
+            <RiskFlagsSection flags={riskFlags} supplierOrder={supplierOrder} recommendedId={comparison.bestScoreSupplierId} />
+          </>
+        )}
       </main>
+
+      <QuoteFormDialog
+        open={quoteDialogOpen}
+        onOpenChange={setQuoteDialogOpen}
+        initialQuote={editing}
+        onSave={(q) => (editing ? updateQuote(q.id, q) : addQuote(q))}
+      />
+      <UploadQuoteDialog open={uploadOpen} onOpenChange={setUploadOpen} />
     </div>
   );
 }
